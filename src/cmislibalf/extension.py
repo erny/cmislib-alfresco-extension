@@ -43,7 +43,7 @@ CHANGE_TOKEN = 'cmis:changeToken'
 def addSetAspectsToXMLDocument(xmldoc):
     entryElements = xmldoc.getElementsByTagNameNS(model.ATOM_NS, 'entry')
     entryElements[0].setAttribute(ALFRESCO_NSALIAS_DECL, ALFRESCO_NS)
-    
+
     propertiesElements = xmldoc.getElementsByTagNameNS(model.CMIS_NS, LOCALNAME_PROPERTIES)
     if len(propertiesElements) == 0:
         objectElement = xmldoc.getElementsByTagNameNS(model.CMISRA_NS, 'object')
@@ -51,15 +51,15 @@ def addSetAspectsToXMLDocument(xmldoc):
         objectElement[0].appendChild(propertiesElement)
     else:
         propertiesElement = propertiesElements[0]
-    
+
     aspectsElement = xmldoc.createElementNS(ALFRESCO_NS, TAGNAME_SET_ASPECTS)
     propertiesElement.appendChild(aspectsElement)
-    
+
     return aspectsElement
 
 def addPropertiesToXMLElement(xmldoc, element, properties, propertiesAspects):
     for propName, propValue in properties.items():
-        
+
         if (propValue == None or (type(propValue) == list and propValue[0] == None)):
             propType = propertiesAspects[propName].properties[propName].propertyType
         elif type(propValue) == list:
@@ -68,7 +68,7 @@ def addPropertiesToXMLElement(xmldoc, element, properties, propertiesAspects):
             propType = type(propValue)
 
         propElementName, propValueStrList = model.getElementNameAndValues(propType, propName, propValue, type(propValue) == list)
-    
+
         propElement = xmldoc.createElementNS(model.CMIS_NS, propElementName)
         propElement.setAttribute('propertyDefinitionId', propName)
         for val in propValueStrList:
@@ -129,23 +129,23 @@ def updateAspects(self, addAspects=None, removeAspects=None):
         xmlEntryDoc = getEntryXmlDoc(self._repository)
         # Patch xmlEntryDoc
         setAspectsElement = addSetAspectsToXMLDocument(xmlEntryDoc)
-        
+
         if addAspects:
             addAspectElement = xmlEntryDoc.createElementNS(ALFRESCO_NS, TAGNAME_ASPECTS_TO_ADD)
             valText = xmlEntryDoc.createTextNode(addAspects)
             addAspectElement.appendChild(valText)
             setAspectsElement.appendChild(addAspectElement)
-        
+
         if removeAspects:
             removeAspectElement = xmlEntryDoc.createElementNS(ALFRESCO_NS, TAGNAME_ASPECTS_TO_REMOVE)
             valText = xmlEntryDoc.createTextNode(removeAspects)
             removeAspectElement.appendChild(valText)
             setAspectsElement.appendChild(removeAspectElement)
-        
+
         updatedXmlDoc = self._cmisClient.put(selfUrl.encode('utf-8'),
                                              xmlEntryDoc.toxml(encoding='utf-8'),
                                              model.ATOM_XML_TYPE)
-    
+
         self.xmlDoc = updatedXmlDoc
         self._initData()
 
@@ -172,9 +172,12 @@ def getProperties(self):
                         else:
                             propertyValue = []
                             for valNode in valNodeList:
-                                propertyValue.append(model.parsePropValue(valNode.
+                                try:
+                                    propertyValue.append(model.parsePropValue(valNode.
                                                            childNodes[0].data,
                                                            node.localName))
+                                except IndexError:
+                                    pass
                     else:
                         propertyValue = None
                     self._alfproperties[propertyName] = propertyValue
@@ -199,7 +202,7 @@ def updateProperties(self, properties):
         objectTypeId = self.properties.get(OBJECT_TYPE_ID)
     objectType = self._repository.getTypeDefinition(objectTypeId)
     objectTypePropsDef = objectType.getProperties()
-    
+
     for propertyName, propertyValue in properties.items():
         if (propertyName == OBJECT_TYPE_ID) or (propertyName in objectTypePropsDef.keys()):
             cmisproperties[propertyName] = propertyValue
@@ -210,19 +213,19 @@ def updateProperties(self, properties):
             else:
                 alfproperties[propertyName] = propertyValue
                 alfpropsAspects[propertyName] = aspect
-    
+
     xmlEntryDoc = getEntryXmlDoc(self._repository, properties=cmisproperties)
-    
+
     # Patch xmlEntryDoc
     # add alfresco properties
     if len(alfproperties) > 0:
         aspectsElement = addSetAspectsToXMLDocument(xmlEntryDoc)
-        
+
         alfpropertiesElement = xmlEntryDoc.createElementNS(ALFRESCO_NS, TAGNAME_ALFRESCO_PROPERTIES)
         aspectsElement.appendChild(alfpropertiesElement)
         # Like regular properties
         addPropertiesToXMLElement(xmlEntryDoc, alfpropertiesElement, alfproperties, alfpropsAspects)
-    
+
     updatedXmlDoc = self._cmisClient.put(selfUrl.encode('utf-8'),
                                          xmlEntryDoc.toxml(encoding='utf-8'),
                                          model.ATOM_XML_TYPE,
