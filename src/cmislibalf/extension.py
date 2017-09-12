@@ -60,7 +60,7 @@ def addSetAspectsToXMLDocument(xmldoc):
 def addPropertiesToXMLElement(xmldoc, element, properties, propertiesAspects):
     for propName, propValue in properties.items():
 
-        if (propValue == None or (type(propValue) == list and propValue[0] == None)):
+        if (propValue in (None, []) or (type(propValue) == list and propValue[0] == None)):
             propType = propertiesAspects[propName].properties[propName].propertyType
         elif type(propValue) == list:
             propType = type(propValue[0])
